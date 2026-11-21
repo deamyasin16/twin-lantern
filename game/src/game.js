@@ -4,6 +4,7 @@ import { buildScene, PANEL_W, PANEL_H } from './scenes.js';
 export const SETS = 3;
 export const MISS_PENALTY = 5;
 export const HINT_PENALTY = 8;
+export const FIND_BONUS = 2;
 
 export function createGame() {
   return { screen: 'title', level: 0, scene: buildScene(0), found: [], misses: [], pops: [], hint: null, hints: 3, time: 75, limit: 75, score: 0, streak: 0, cursor: { x: PANEL_W / 2, y: PANEL_H / 2, on: false } };
@@ -35,6 +36,8 @@ export function guess(game, x, y, now) {
   game.found.push(i);
   game.streak++;
   game.score += 100 + game.streak * 25 + Math.round(game.time);
+  // A find hands a little time back, more on a streak, so a good run feels like momentum.
+  game.time = Math.min(game.limit, game.time + FIND_BONUS + Math.min(3, game.streak - 1));
   game.pops.push({ i, at: now });
   if (game.hint && game.hint.i === i) game.hint = null;
   if (remaining(game) === 0) game.screen = game.level + 1 < SETS ? 'cleared' : 'won';
@@ -42,7 +45,8 @@ export function guess(game, x, y, now) {
 }
 
 export function useHint(game, now) {
-  if (game.screen !== 'play' || game.hints < 1 || game.hint) return false;
+  // A hint never ends the run: it is refused when its cost would empty the clock.
+  if (game.screen !== 'play' || game.hints < 1 || game.hint || game.time <= HINT_PENALTY) return false;
   const i = game.scene.diffs.findIndex((d, n) => !game.found.includes(n));
   if (i < 0) return false;
   game.hints--;
